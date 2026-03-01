@@ -57,7 +57,8 @@ int main() {
                 }
 
             } else {
-                printf("Entrada invalida. Se ignora.\n\n");
+                printf("Entrada invalida. Debe ser un numero entero positivo.\n\n");
+
             }
 
             printf("Ingrese otro numero:\n");
@@ -65,4 +66,5 @@ int main() {
     }
 
     return 0;
+
 }
