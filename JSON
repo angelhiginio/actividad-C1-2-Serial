@@ -1,0 +1,59 @@
+#include <ArduinoJson.h>
+
+void setup() {
+  Serial.begin(115200);
+}
+
+void loop() {
+
+  if (Serial.available()) {
+
+    String yeison = Serial.readString();   // Lee el JSON enviado
+
+    StaticJsonDocument<256> doc;
+    DeserializationError error = deserializeJson(doc, yeison);
+
+    if (error) {
+      Serial.println("Error: JSON invalido");
+      return;
+    }
+
+    if (!doc.containsKey("ID") ||
+        !doc.containsKey("temperatura") ||
+        !doc.containsKey("humedad") ||
+        !doc.containsKey("distancia")) {
+
+      Serial.println("Error: faltan datos");
+      return;
+    }
+
+    if (!doc["ID"].is<String>()) {
+      Serial.println("Error: ID debe ser texto");
+      return;
+    }
+
+    if (!doc["temperatura"].is<float>() && !doc["temperatura"].is<int>()) {
+      return;  // ignorar completamente
+    }
+
+    if (!doc["humedad"].is<float>() && !doc["humedad"].is<int>()) {
+      return;
+    }
+
+    if (!doc["distancia"].is<float>() && !doc["distancia"].is<int>()) {
+      return;
+    }
+    Serial.println("Estado actual:");
+    Serial.print("ID: ");
+    Serial.println(doc["ID"].as<String>());
+
+    Serial.print("Humedad: ");
+    Serial.println(doc["humedad"].as<float>());
+
+    Serial.print("Temperatura: ");
+    Serial.println(doc["temperatura"].as<float>());
+
+    Serial.print("Distancia: ");
+    Serial.println(doc["distancia"].as<float>());
+  }
+}
