@@ -1,70 +1,47 @@
 #include <stdio.h>
-#include <stdlib.h>
-#include <ctype.h>
 #include <string.h>
+#include <ctype.h>
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "driver/uart.h"
 
-int es_entero_positivo(char *str) {
-    if (strlen(str) == 0) return 0;
+#define UART_PORT_NUM      UART_NUM_0
+#define UART_BAUD_RATE     115200
+#define BUF_SIZE           1024
 
-    for (int i = 0; i < strlen(str); i++) {
-        if (!isdigit(str[i])) {
-            return 0;
-        }
-    }
-    return 1;
+void configurar_uart() {
+    uart_config_t uart_config = {
+        .baud_rate = UART_BAUD_RATE,
+        .data_bits = UART_DATA_8_BITS,
+        .parity    = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
+        .source_clk = UART_SCLK_DEFAULT, 
+    };
+    uart_param_config(UART_PORT_NUM, &uart_config);
+    uart_driver_install(UART_PORT_NUM, BUF_SIZE * 2, 0, 0, NULL, 0);
 }
 
-long calcular_cuadrado_mostrando_pasos(int N) {
-    long suma = 0;
-    int impar = 1;
 
-    printf("\nProceso de suma de impares:\n");
+void app_main(void) {
+    configurar_uart();
+    char input[BUF_SIZE];
 
-    for (int i = 0; i < N; i++) {
-        printf("Iteracion %d: suma = %ld + %d", i + 1, suma, impar);
-        suma += impar;
-        printf(" = %ld\n", suma);
-        impar += 2;
-    }
-
-    return suma;
-}
-
-int main() {
-
-    char input[100];
-
-    printf("Ingrese un numero entero positivo mayor que 0:\n");
-
+    printf("\n--- ESP32 Serial Monitor (PuTTY) ---\n");
+    
     while (1) {
+        printf("Ingrese un numero entero positivo:\n");
+        
+        int len = uart_read_bytes(UART_PORT_NUM, (uint8_t*)input, BUF_SIZE - 1, portMAX_DELAY);
+        
+        if (len > 0) {
+            input[len] = '\0';
+            char *pos;
+            if ((pos=strchr(input, '\n')) != NULL) *pos = '\0';
+            if ((pos=strchr(input, '\r')) != NULL) *pos = '\0';
 
-        if (fgets(input, sizeof(input), stdin) != NULL) {
-
-            input[strcspn(input, "\n")] = 0;
-
-            if (es_entero_positivo(input)) {
-
-                int N = atoi(input);
-
-                if (N > 0) {
-
-                    long resultado = calcular_cuadrado_mostrando_pasos(N);
-
-                    printf("\nEl cuadrado de %d es: %ld\n\n", N, resultado);
-
-                } else {
-                    printf("Debe ser mayor que cero.\n\n");
-                }
-
-            } else {
-                printf("Entrada invalida. Debe ser un numero entero positivo.\n\n");
-
-            }
-
-            printf("Ingrese otro numero:\n");
+           
         }
+        vTaskDelay(pdMS_TO_TICKS(100)); 
     }
-
-    return 0;
-
 }
