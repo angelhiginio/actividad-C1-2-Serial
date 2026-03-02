@@ -2,58 +2,60 @@
 
 void setup() {
   Serial.begin(115200);
+  Serial.println("Analizador iniciado. Ingrese JSON:");
 }
 
 void loop() {
-
   if (Serial.available()) {
+    String entrada = Serial.readStringUntil('\n');
+    entrada.trim();
 
-    String yeison = Serial.readString();   // Lee el JSON enviado
+    if (entrada.length() == 0) return;
 
-    StaticJsonDocument<256> doc;
-    DeserializationError error = deserializeJson(doc, yeison);
+    StaticJsonDocument<512> doc;
+    DeserializationError error = deserializeJson(doc, entrada);
 
     if (error) {
-      Serial.println("Error: JSON invalido");
+      Serial.println("No se ha ingrezado un numero valido, intente de nuevo");
       return;
     }
 
-    if (!doc.containsKey("ID") ||
-        !doc.containsKey("temperatura") ||
-        !doc.containsKey("humedad") ||
-        !doc.containsKey("distancia")) {
+    const char* kID = doc.containsKey("ID") ? "ID" : (doc.containsKey("id") ? "id" : NULL);
+    const char* kTemp = doc.containsKey("Temperatura") ? "Temperatura" : (doc.containsKey("temperatura") ? "temperatura" : NULL);
+    const char* kHum = doc.containsKey("Humedad") ? "Humedad" : (doc.containsKey("humedad") ? "humedad" : NULL);
+    const char* kDist = doc.containsKey("Distancia") ? "Distancia" : (doc.containsKey("distancia") ? "distancia" : NULL);
 
+    if (!kID || !kTemp || !kHum || !kDist) {
       Serial.println("Error: faltan datos");
       return;
     }
 
-    if (!doc["ID"].is<String>()) {
-      Serial.println("Error: ID debe ser texto");
+    if (!doc[kID].is<String>()) {
       return;
     }
 
-    if (!doc["temperatura"].is<float>() && !doc["temperatura"].is<int>()) {
-      return;  // ignorar completamente
-    }
-
-    if (!doc["humedad"].is<float>() && !doc["humedad"].is<int>()) {
+    if (!doc[kTemp].is<float>() || !doc[kHum].is<float>() || !doc[kDist].is<float>()) {
       return;
     }
 
-    if (!doc["distancia"].is<float>() && !doc["distancia"].is<int>()) {
-      return;
-    }
+    String id = doc[kID].as<String>();
+    float temp = doc[kTemp].as<float>();
+    float hum = doc[kHum].as<float>();
+    float dist = doc[kDist].as<float>();
+
+    Serial.print("se ha ingresado el numero ");
+    Serial.println(temp);
+
     Serial.println("Estado actual:");
     Serial.print("ID: ");
-    Serial.println(doc["ID"].as<String>());
-
-    Serial.print("Humedad: ");
-    Serial.println(doc["humedad"].as<float>());
-
+    Serial.println(id);
     Serial.print("Temperatura: ");
-    Serial.println(doc["temperatura"].as<float>());
-
+    Serial.println(temp);
+    Serial.print("Humedad: ");
+    Serial.println(hum);
     Serial.print("Distancia: ");
-    Serial.println(doc["distancia"].as<float>());
+    Serial.println(dist);
+    
+    Serial.println("Ingrese un nuevo dato JSON");
   }
 }
