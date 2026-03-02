@@ -1,47 +1,58 @@
-#include <stdio.h>
-#include <string.h>
-#include <ctype.h>
-#include "freertos/FreeRTOS.h"
-#include "freertos/task.h"
-#include "driver/uart.h"
+char buffer[20]; 
+int posicion = 0;
 
-#define UART_PORT_NUM      UART_NUM_0
-#define UART_BAUD_RATE     115200
-#define BUF_SIZE           1024
-
-void configurar_uart() {
-    uart_config_t uart_config = {
-        .baud_rate = UART_BAUD_RATE,
-        .data_bits = UART_DATA_8_BITS,
-        .parity    = UART_PARITY_DISABLE,
-        .stop_bits = UART_STOP_BITS_1,
-        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE,
-        .source_clk = UART_SCLK_DEFAULT, 
-    };
-    uart_param_config(UART_PORT_NUM, &uart_config);
-    uart_driver_install(UART_PORT_NUM, BUF_SIZE * 2, 0, 0, NULL, 0);
+void setup() {
+  Serial.begin(9600);
+  Serial.println("Ingrese un numero entero positivo");
 }
 
-
-void app_main(void) {
-    configurar_uart();
-    char input[BUF_SIZE];
-
-    printf("\n--- ESP32 Serial Monitor (PuTTY) ---\n");
+void loop() {
+  while (Serial.available() > 0) {
+    char c = Serial.read();
     
-    while (1) {
-        printf("Ingrese un numero entero positivo:\n");
+    if (c == '\n' || c == '\r') {
+      if (posicion > 0) {
+        buffer[posicion] = '\0';
         
-        int len = uart_read_bytes(UART_PORT_NUM, (uint8_t*)input, BUF_SIZE - 1, portMAX_DELAY);
-        
-        if (len > 0) {
-            input[len] = '\0';
-            char *pos;
-            if ((pos=strchr(input, '\n')) != NULL) *pos = '\0';
-            if ((pos=strchr(input, '\r')) != NULL) *pos = '\0';
-
-           
+        bool esNumerico = true;
+        for (int i = 0; i < posicion; i++) {
+          if (!isdigit(buffer[i])) {
+            esNumerico = false;
+            break;
+          }
         }
-        vTaskDelay(pdMS_TO_TICKS(100)); 
+
+        if (!esNumerico) {
+          Serial.println("No se ha ingrezado un numero valido, intente de nuevo");
+        } else {
+          int numero = atoi(buffer);
+          if (numero > 0) {
+            Serial.print("Se ha ingresado el numero ");
+            Serial.println(numero);
+
+            int suma = 0;
+            int impar = 1;
+            for (int i = 0; i < numero; i++) {
+              suma += impar;
+              Serial.print("Sumando: ");
+              Serial.print(impar);
+              Serial.print(" -> Suma acumulada: ");
+              Serial.println(suma);
+              impar += 2;
+            }
+            Serial.println("--- Resultado final ---");
+            Serial.println(suma);
+            Serial.println("Ingrese un numero entero positivo");
+          } else {
+            Serial.println("El numero es invalido, ingrese uno nuevo");
+          }
+        }
+        posicion = 0;
+      }
+    } else {
+      if (posicion < sizeof(buffer) - 1) {
+        buffer[posicion++] = c;
+      }
     }
+  }
 }
