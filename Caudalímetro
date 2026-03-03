@@ -1,3 +1,8 @@
+#include <Arduino.h>
+#include <stdio.h>    // para sscanf()
+#include <stdlib.h>   // para atoi()
+#include <ctype.h>    // para isdigit()
+
 char buffer[100]; 
 int posicion = 0;
 int mayor = -1;
@@ -20,13 +25,15 @@ void loop() {
         int valor = -1;
         bool encontrado = false;
 
+        // Intentar leer formato {'caudal': VALOR}
         if (sscanf(buffer, "{'caudal': %d}", &valor) == 1) {
           encontrado = true;
         } else {
+          // Extraer solo números
           char soloNumeros[20];
           int j = 0;
           for (int i = 0; i < posicion; i++) {
-            if (isdigit(buffer[i])) {
+            if (isdigit((unsigned char)buffer[i])) {
               soloNumeros[j++] = buffer[i];
             }
           }
@@ -39,7 +46,7 @@ void loop() {
         }
 
         if (encontrado && valor >= 0 && valor <= 99) {
-          Serial.print("se ha ingresado el numero ");
+          Serial.print("Se ha ingresado el numero ");
           Serial.println(valor);
 
           if (contador == 0) {
@@ -64,7 +71,7 @@ void loop() {
           Serial.print(promedio, 2);
           Serial.println("}");
         } else {
-          Serial.println("No se ha ingrezado un numero valido (0-99), intente de nuevo");
+          Serial.println("No se ha ingresado un numero valido (0-99), intente de nuevo");
         }
         posicion = 0;
       }
@@ -75,3 +82,4 @@ void loop() {
     }
   }
 }
+
