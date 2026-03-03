@@ -1,85 +1,127 @@
-#include <Arduino.h>
-#include <stdio.h>    // para sscanf()
-#include <stdlib.h>   // para atoi()
-#include <ctype.h>    // para isdigit()
+#include <stdio.h>
+#include <string.h>
+#include <stdlib.h>
+#include <ctype.h>
 
-char buffer[100]; 
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
+#include "driver/uart.h"
+#include "esp_log.h"
+
+#define UART_NUM        UART_NUM_0
+#define BUF_SIZE        1024
+
+static const char *TAG = "MAIN";
+
+char buffer[100];
 int posicion = 0;
 int mayor = -1;
 int menor = 101;
 int suma = 0;
 int contador = 0;
 
-void setup() {
-  Serial.begin(9600);
-  Serial.println("Ingrese el numero o el formato {'caudal': VALOR}");
-}
+void app_main(void)
+{
+    // Configuración UART
+    uart_config_t uart_config = {
+        .baud_rate = 9600,
+        .data_bits = UART_DATA_8_BITS,
+        .parity    = UART_PARITY_DISABLE,
+        .stop_bits = UART_STOP_BITS_1,
+        .flow_ctrl = UART_HW_FLOWCTRL_DISABLE
+    };
 
-void loop() {
-  while (Serial.available() > 0) {
-    char c = Serial.read();
-    
-    if (c == '\n' || c == '\r') {
-      if (posicion > 0) {
-        buffer[posicion] = '\0';
-        int valor = -1;
-        bool encontrado = false;
+    uart_driver_install(UART_NUM, BUF_SIZE, 0, 0, NULL, 0);
+    uart_param_config(UART_NUM, &uart_config);
+    uart_set_pin(UART_NUM, UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE,
+                 UART_PIN_NO_CHANGE, UART_PIN_NO_CHANGE);
 
-        // Intentar leer formato {'caudal': VALOR}
-        if (sscanf(buffer, "{'caudal': %d}", &valor) == 1) {
-          encontrado = true;
-        } else {
-          // Extraer solo números
-          char soloNumeros[20];
-          int j = 0;
-          for (int i = 0; i < posicion; i++) {
-            if (isdigit((unsigned char)buffer[i])) {
-              soloNumeros[j++] = buffer[i];
+    printf("Ingrese el numero o el formato {'caudal': VALOR}\n");
+
+    uint8_t data[1];
+
+    while (1)
+    {
+        int len = uart_read_bytes(UART_NUM, data, 1, 20 / portTICK_PERIOD_MS);
+
+        if (len > 0)
+        {
+            char c = (char)data[0];
+
+            if (c == '\n' || c == '\r')
+            {
+                if (posicion > 0)
+                {
+                    buffer[posicion] = '\0';
+
+                    int valor = -1;
+                    int encontrado = 0;
+
+                    // Intentar leer formato {'caudal': VALOR}
+                    if (sscanf(buffer, "{'caudal': %d}", &valor) == 1)
+                    {
+                        encontrado = 1;
+                    }
+                    else
+                    {
+                        char soloNumeros[20];
+                        int j = 0;
+
+                        for (int i = 0; i < posicion; i++)
+                        {
+                            if (isdigit((unsigned char)buffer[i]))
+                            {
+                                soloNumeros[j++] = buffer[i];
+                            }
+                        }
+
+                        soloNumeros[j] = '\0';
+
+                        if (j > 0)
+                        {
+                            valor = atoi(soloNumeros);
+                            encontrado = 1;
+                        }
+                    }
+
+                    if (encontrado && valor >= 0 && valor <= 99)
+                    {
+                        printf("Se ha ingresado el numero %d\n", valor);
+
+                        if (contador == 0)
+                        {
+                            mayor = valor;
+                            menor = valor;
+                        }
+                        else
+                        {
+                            if (valor > mayor) mayor = valor;
+                            if (valor < menor) menor = valor;
+                        }
+
+                        suma += valor;
+                        contador++;
+
+                        float promedio = (float)suma / contador;
+
+                        printf("{'ultimo': %d, 'mayor': %d, 'menor': %d, 'promedio': %.2f}\n",
+                               valor, mayor, menor, promedio);
+                    }
+                    else
+                    {
+                        printf("No se ha ingresado un numero valido (0-99), intente de nuevo\n");
+                    }
+
+                    posicion = 0;
+                }
             }
-          }
-          soloNumeros[j] = '\0';
-          
-          if (j > 0) {
-            valor = atoi(soloNumeros);
-            encontrado = true;
-          }
+            else
+            {
+                if (posicion < sizeof(buffer) - 1)
+                {
+                    buffer[posicion++] = c;
+                }
+            }
         }
-
-        if (encontrado && valor >= 0 && valor <= 99) {
-          Serial.print("Se ha ingresado el numero ");
-          Serial.println(valor);
-
-          if (contador == 0) {
-            mayor = valor;
-            menor = valor;
-          } else {
-            if (valor > mayor) mayor = valor;
-            if (valor < menor) menor = valor;
-          }
-          
-          suma += valor;
-          contador++;
-          float promedio = (float)suma / contador;
-
-          Serial.print("{'ultimo': ");
-          Serial.print(valor);
-          Serial.print(", 'mayor': ");
-          Serial.print(mayor);
-          Serial.print(", 'menor': ");
-          Serial.print(menor);
-          Serial.print(", 'promedio': ");
-          Serial.print(promedio, 2);
-          Serial.println("}");
-        } else {
-          Serial.println("No se ha ingresado un numero valido (0-99), intente de nuevo");
-        }
-        posicion = 0;
-      }
-    } else {
-      if (posicion < sizeof(buffer) - 1) {
-        buffer[posicion++] = c;
-      }
     }
-  }
 }
-
